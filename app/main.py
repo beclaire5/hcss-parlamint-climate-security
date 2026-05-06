@@ -1,0 +1,305 @@
+"""
+HCSS Datalab — Climate in Dutch Parliamentary Discourse (2014–2022)
+====================================================================
+
+A Streamlit application for exploring how the Dutch parliament has
+discussed climate, with a particular focus on the climate-security nexus, a research priority of HCSS.
+
+Run from the project root:
+    streamlit run app/main.py
+"""
+
+from __future__ import annotations
+import sys
+from pathlib import Path
+
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+
+# Make sure we can import from src/
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.text_processing import clean_tokenized_text, CLIMATE_KEYWORDS
+from src import analysis as A
+
+
+# ----------------------------------------------------------------------------
+# Page configuration
+# ----------------------------------------------------------------------------
+st.set_page_config(
+    page_title="Climate in Dutch Parliament — HCSS",
+    page_icon="🌍",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+
+# ----------------------------------------------------------------------------
+# Data loading (cached so we only load once per session)
+# ----------------------------------------------------------------------------
+@st.cache_data
+def load_climate_speeches() -> pd.DataFrame:
+    path = PROJECT_ROOT / "data" / "processed" / "climate_speeches.csv"
+    df = pd.read_csv(path)
+    df["date"] = pd.to_datetime(df["date"])
+    return df
+
+
+@st.cache_data
+def load_all_speeches_metadata() -> pd.DataFrame:
+    """Load only metadata columns (no full text) from the full corpus.
+    Used for computing party-level baselines (e.g., share of speeches
+    that are climate-related)."""
+    path = PROJECT_ROOT / "data" / "processed" / "all_speeches.csv"
+    df = pd.read_csv(path, usecols=["date", "year", "house", "subcorpus", "party_abbr"])
+    return df
+
+
+# ----------------------------------------------------------------------------
+# Sidebar (filters)
+# ----------------------------------------------------------------------------
+def sidebar_filters(df: pd.DataFrame) -> dict:
+    st.sidebar.title("🌍 Filters")
+    st.sidebar.markdown("Refine the analysis by year, party, and theme.")
+
+    # Year range slider
+    min_year = int(df["year"].min())
+    max_year = int(df["year"].max())
+    year_range = st.sidebar.slider(
+        "Year range",
+        min_value=min_year, max_value=max_year,
+        value=(min_year, max_year),
+        step=1,
+    )
+
+    # Parties multiselect
+    all_parties = sorted(df["party_abbr"].dropna().unique())
+    selected_parties = st.sidebar.multiselect(
+        "Parties (leave empty for all)",
+        options=all_parties,
+        default=[],
+    )
+
+    # House
+    house = st.sidebar.radio(
+        "House",
+        options=["Both", "Lower (Tweede Kamer)", "Upper (Eerste Kamer)"],
+        index=0,
+    )
+
+    # Themes
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**Climate themes**")
+    selected_themes = []
+    for theme_col, label in A.THEME_LABELS.items():
+        if st.sidebar.checkbox(label, value=True, key=theme_col):
+            selected_themes.append(theme_col)
+
+    return {
+        "year_range": year_range,
+        "parties": selected_parties,
+        "house": house,
+        "themes": selected_themes,
+    }
+
+
+def apply_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
+    out = df.copy()
+    out = out[(out["year"] >= filters["year_range"][0]) & (out["year"] <= filters["year_range"][1])]
+    if filters["parties"]:
+        out = out[out["party_abbr"].isin(filters["parties"])]
+    if filters["house"] == "Lower (Tweede Kamer)":
+        out = out[out["house"] == "Lower"]
+    elif filters["house"] == "Upper (Eerste Kamer)":
+        out = out[out["house"] == "Upper"]
+    if filters["themes"]:
+        # Keep speeches matching AT LEAST one selected theme
+        theme_mask = out[filters["themes"]].any(axis=1)
+        out = out[theme_mask]
+    return out
+
+
+# ----------------------------------------------------------------------------
+# Main app
+# ----------------------------------------------------------------------------
+def main():
+    # Header
+    st.title("🌍 Climate in Dutch Parliamentary Discourse")
+    st.markdown(
+        "**An exploratory analysis of how the Dutch parliament discussed climate "
+        "between 2014 and 2022, with a focus on the climate-security nexus.**"
+    )
+    st.markdown(
+        "*Built for the HCSS Datalab Internship application. "
+        "Source: [ParlaMint-NL-en v4.1](https://www.clarin.si/repository/xmlui/handle/11356/1910).*"
+    )
+
+    # Load data
+    with st.spinner("Loading climate speeches..."):
+        df = load_climate_speeches()
+        df_all_meta = load_all_speeches_metadata()
+
+    # Sidebar filters
+    filters = sidebar_filters(df)
+    df_filtered = apply_filters(df, filters)
+
+    # ------------------------------------------------------------------------
+    # Top metrics
+    # ------------------------------------------------------------------------
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Climate speeches", f"{len(df_filtered):,}")
+    col2.metric("Unique speakers", f"{df_filtered['speaker_name'].nunique():,}")
+    col3.metric("Parties", f"{df_filtered['party_abbr'].nunique()}")
+    col4.metric(
+        "Security-nexus speeches",
+        f"{int(df_filtered.get('is_climate_security_nexus', pd.Series(dtype=bool)).sum()):,}"
+    )
+
+    st.markdown("---")
+
+    # ------------------------------------------------------------------------
+    # Tabs for different views
+    # ------------------------------------------------------------------------
+    tab_overview, tab_actors, tab_themes, tab_war, tab_arctic, tab_explore = st.tabs([
+        "📈 Trends over time",
+        "👥 Actors",
+        "🎯 Themes",
+        "🇷🇺 Pre/Post invasion",
+        "❄️ Arctic deep-dive",
+        "🔍 Explore speeches",
+    ])
+
+    # --- Trends ---
+    with tab_overview:
+        st.subheader("Climate-related speeches per year")
+        yearly = A.speeches_per_year(df_filtered)
+        fig = px.bar(yearly, x="year", y="count",
+                     labels={"count": "Number of speeches"},
+                     color_discrete_sequence=["#1f4e79"])
+        fig.update_layout(showlegend=False, xaxis=dict(tickmode="linear"))
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.subheader("Climate themes over time")
+        themed = A.speeches_per_year_by_theme(df_filtered)
+        if not themed.empty:
+            fig2 = px.line(themed, x="year", y="count", color="theme",
+                           markers=True,
+                           labels={"count": "Speeches", "theme": "Theme"})
+            fig2.update_layout(xaxis=dict(tickmode="linear"))
+            st.plotly_chart(fig2, use_container_width=True)
+
+    # --- Actors ---
+    with tab_actors:
+        col_left, col_right = st.columns(2)
+
+        with col_left:
+            st.subheader("Top 10 speakers")
+            top_sp = A.top_speakers(df_filtered, n=10)
+            if not top_sp.empty:
+                top_sp["label"] = top_sp["speaker_name"] + " (" + top_sp["party_abbr"].fillna("?") + ")"
+                fig = px.bar(top_sp, x="count", y="label", orientation="h",
+                             labels={"count": "Speeches", "label": ""},
+                             color_discrete_sequence=["#1f4e79"])
+                fig.update_layout(yaxis={"categoryorder": "total ascending"})
+                st.plotly_chart(fig, use_container_width=True)
+
+        with col_right:
+            st.subheader("Top parties by climate speech count")
+            top_p = A.top_parties(df_filtered, n=15)
+            if not top_p.empty:
+                fig = px.bar(top_p, x="count", y="party_abbr", orientation="h",
+                             labels={"count": "Speeches", "party_abbr": ""},
+                             color_discrete_sequence=["#2e7d32"])
+                fig.update_layout(yaxis={"categoryorder": "total ascending"})
+                st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("Climate intensity — share of each party's speeches that are climate-related")
+        st.caption("This corrects for party size: small parties may speak proportionally more about climate.")
+        intensity = A.party_climate_intensity(df_all_meta, df_filtered, n=15)
+        if not intensity.empty:
+            fig = px.bar(intensity, x="climate_share_pct", y="party_abbr", orientation="h",
+                         labels={"climate_share_pct": "% of speeches that mention climate",
+                                 "party_abbr": ""},
+                         color_discrete_sequence=["#558b2f"])
+            fig.update_layout(yaxis={"categoryorder": "total ascending"})
+            st.plotly_chart(fig, use_container_width=True)
+
+    # --- Themes ---
+    with tab_themes:
+        st.subheader("Distribution of climate themes")
+        theme_dist = A.theme_distribution(df_filtered)
+        if not theme_dist.empty:
+            fig = px.bar(theme_dist.sort_values("count"), x="count", y="theme",
+                         orientation="h",
+                         labels={"count": "Speeches", "theme": ""},
+                         color_discrete_sequence=["#1f4e79"])
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown("**Note**: themes can overlap — a single speech may mention both 'core' and 'security_nexus' keywords.")
+
+    # --- Pre/Post invasion ---
+    with tab_war:
+        st.subheader("Did the Russian invasion of Ukraine (Feb 2022) change the climate discourse?")
+        st.caption("Comparing climate speech rates per day, before and after 24 February 2022. Restricted to 2021–2022 for a fair comparison window.")
+        comp = A.pre_post_invasion_comparison(df_filtered)
+        if not comp.empty:
+            st.dataframe(comp, use_container_width=True)
+            fig = px.bar(comp, x="theme", y="pct_change",
+                         labels={"pct_change": "% change in daily speech rate",
+                                 "theme": ""},
+                         color="pct_change",
+                         color_continuous_scale="RdYlGn",
+                         color_continuous_midpoint=0)
+            st.plotly_chart(fig, use_container_width=True)
+
+    # --- Arctic ---
+    with tab_arctic:
+        st.subheader("The Arctic in Dutch parliamentary debate")
+        df_arctic = df[df.get("is_climate_arctic", pd.Series(False, index=df.index))]
+        st.write(
+            f"Despite the Netherlands being a non-Arctic country, the Dutch parliament "
+            f"mentioned the Arctic in **{len(df_arctic)} climate-related speeches** between 2014 and 2022. "
+            f"This reflects the country's status as an Arctic Council observer and its broader engagement "
+            f"in climate-security discussions."
+        )
+        if not df_arctic.empty:
+            yearly_arc = df_arctic.groupby("year").size().reset_index(name="count")
+            fig = px.bar(yearly_arc, x="year", y="count",
+                         labels={"count": "Arctic mentions"},
+                         color_discrete_sequence=["#0277bd"])
+            fig.update_layout(xaxis=dict(tickmode="linear"))
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.markdown("**Sample speeches mentioning the Arctic:**")
+            samples = A.get_speech_samples(df_arctic, n=5)
+            for _, row in samples.iterrows():
+                with st.expander(f"{row['date'].strftime('%Y-%m-%d') if hasattr(row['date'], 'strftime') else row['date']} — {row['speaker_name']} ({row['party_abbr']})"):
+                    st.write(clean_tokenized_text(row["text"]))
+
+    # --- Explore ---
+    with tab_explore:
+        st.subheader("Browse individual speeches")
+        st.caption("A random sample from your current filter selection.")
+        n = st.slider("Number of samples", 1, 20, 5)
+        if len(df_filtered) > 0:
+            samples = A.get_speech_samples(df_filtered, n=n, random_state=None)
+            for _, row in samples.iterrows():
+                date_str = row['date'].strftime('%Y-%m-%d') if hasattr(row['date'], 'strftime') else str(row['date'])
+                with st.expander(f"{date_str} — {row['speaker_name']} ({row['party_abbr']}) [{row['house']}]"):
+                    st.write(clean_tokenized_text(row["text"]))
+        else:
+            st.info("No speeches match your filters.")
+
+    # Footer
+    st.markdown("---")
+    st.caption(
+        "Built by Chiara Barontini · HCSS Datalab Internship Application · "
+        "Data from [ParlaMint-NL](https://www.clarin.si/repository/xmlui/handle/11356/1910) (CC BY 4.0)"
+    )
+
+
+if __name__ == "__main__":
+    main()

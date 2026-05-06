@@ -55,8 +55,8 @@ CLIMATE_KEYWORDS = {
         "drought", "flooding", "sea level",
     ],
     "arctic": [
-        # Arctic-specific dimension
-        "arctic", "polar", "antarctic",
+        # Arctic-specific dimension (curated to avoid false positives)
+        "arctic", "antarctic",
         "ice cap", "ice sheet", "melting ice", "sea ice",
         "northern sea route", "arctic council",
         "greenland", "spitsbergen", "svalbard",
