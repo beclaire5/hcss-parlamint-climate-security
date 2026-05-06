@@ -314,18 +314,80 @@ def main():
 
     # --- Pre/Post invasion ---
     with tab_war:
-        st.subheader("Did the Russian invasion of Ukraine (Feb 2022) change the climate discourse?")
-        st.caption("Comparing climate speech rates per day, before and after 24 February 2022. Restricted to 2021–2022 for a fair comparison window.")
-        comp = A.pre_post_invasion_comparison(df_filtered)
-        if not comp.empty:
-            st.dataframe(comp, use_container_width=True)
-            fig = px.bar(comp, x="theme", y="pct_change",
-                         labels={"pct_change": "% change in daily speech rate",
-                                 "theme": ""},
-                         color="pct_change",
-                         color_continuous_scale="RdYlGn",
-                         color_continuous_midpoint=0)
+        st.subheader("Did the Russian invasion of Ukraine (Feb 2022) shift the climate discourse?")
+        st.caption(
+            "We test whether the share of speeches mentioning each climate theme "
+            "significantly changed between the period **before** and **after** "
+            "24 February 2022, using a **chi-square test of independence**. "
+            "The comparison window is restricted to 2021-01-01 → corpus end for fair baseline."
+        )
+
+        sig = A.pre_post_invasion_significance(df_filtered, df_all_meta)
+
+        if not sig.empty:
+            # Display summary table
+            display_df = sig[["theme", "pre_count", "post_count",
+                              "pre_share_pct", "post_share_pct",
+                              "abs_change_pct", "chi2", "p_value", "significant_005"]].copy()
+            display_df.columns = ["Theme", "Pre count", "Post count",
+                                   "Pre share (%)", "Post share (%)",
+                                   "Δ (pp)", "χ²", "p-value", "Significant (p<0.05)"]
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+            # Visualization: change in share with significance highlighted
+            sig_plot = sig.copy()
+            sig_plot["Significance"] = sig_plot["significant_005"].map(
+                {True: "Significant (p<0.05)", False: "Not significant"}
+            )
+            fig = px.bar(
+                sig_plot,
+                x="theme", y="abs_change_pct",
+                color="Significance",
+                color_discrete_map={
+                    "Significant (p<0.05)": "#1f3a5f",
+                    "Not significant": "#bdbdbd",
+                },
+                labels={"abs_change_pct": "Change in share (percentage points)",
+                        "theme": ""},
+                title="Change in share of climate-theme speeches after the invasion",
+            )
+            fig.update_layout(legend_title="")
             st.plotly_chart(fig, use_container_width=True)
+
+            # Narrative interpretation
+            sig_themes = sig[sig["significant_005"]]
+            if not sig_themes.empty:
+                significant_list = ", ".join(f"**{t}**" for t in sig_themes["theme"])
+                st.success(
+                    f"The chi-square test indicates a statistically significant shift "
+                    f"(p<0.05) in: {significant_list}. "
+                    f"For these themes, the change in discourse share before vs. after "
+                    f"the invasion is unlikely to be explained by random fluctuation alone."
+                )
+            else:
+                st.info(
+                    "No theme shows a statistically significant shift at the p<0.05 threshold "
+                    "in the chosen filter selection. This could mean the discourse was relatively "
+                    "stable, or that the comparison window contains too few post-invasion observations."
+                )
+
+            with st.expander("How to read this analysis"):
+                st.markdown("""
+                The **chi-square test of independence** compares two periods (pre/post invasion)
+                and asks: *is the share of speeches mentioning theme X significantly different
+                between the two periods, beyond what we would expect by chance?*
+
+                - **χ² (chi-square statistic)** — larger means bigger gap between observed and
+                  expected counts
+                - **p-value** — probability of observing this gap if the two periods truly
+                  had the same underlying rate. p < 0.05 means we reject that hypothesis
+                - **Δ (pp)** — change in the share of speeches mentioning the theme,
+                  expressed in percentage points (e.g., 0.5pp = 0.5%)
+
+                **Caveats**: parliamentary speech rates are influenced by many concurrent
+                factors (election cycles, COVID, agenda setting). Significance here is
+                association, not causation.
+                """)
 
     # --- Arctic ---
     with tab_arctic:

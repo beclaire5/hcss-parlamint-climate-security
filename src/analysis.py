@@ -251,3 +251,78 @@ def cluster_speeches(
         top_terms.append([feature_names[j] for j in top_idx])
 
     return df_sample, top_terms
+# ----------------------------------------------------------------------------
+# Statistical significance: did the Russian invasion shift the discourse?
+# ----------------------------------------------------------------------------
+
+def pre_post_invasion_significance(df_climate: pd.DataFrame, df_all: pd.DataFrame) -> pd.DataFrame:
+    """For each climate theme, test whether the rate of mention significantly
+    changed after the Russian invasion of Ukraine (24 Feb 2022), using a
+    chi-square test of independence.
+
+    The test compares two contingency tables:
+        Period          | Climate-theme speeches | Other speeches
+        Pre-invasion    |        a               |       b
+        Post-invasion   |        c               |       d
+
+    A significant chi-square (p < 0.05) means the share of speeches mentioning
+    that theme is different before vs after the invasion in a way that is
+    unlikely to be due to chance.
+
+    Returns df: theme, pre_share_pct, post_share_pct, chi2, p_value, significant
+    """
+    from scipy.stats import chi2_contingency
+
+    # Restrict to comparable window: 2021-01-01 → 2022-07-12 (corpus end)
+    # for fair comparison of pre vs post invasion.
+    WINDOW_START = "2021-01-01"
+    WINDOW_END = df_all["date"].max()  # corpus end
+
+    # Filter both dataframes to the comparison window
+    all_window = df_all[(df_all["date"] >= WINDOW_START) & (df_all["date"] <= WINDOW_END)]
+    climate_window = df_climate[(df_climate["date"] >= WINDOW_START) & (df_climate["date"] <= WINDOW_END)]
+
+    # Total speeches in each period (denominator: ALL speeches, climate or not)
+    pre_total = (all_window["date"] < INVASION_DATE).sum()
+    post_total = (all_window["date"] >= INVASION_DATE).sum()
+
+    rows = []
+    for theme_col in THEME_COLS:
+        if theme_col not in df_climate.columns:
+            continue
+
+        # Numerator: climate-theme speeches in each period
+        pre_theme = ((climate_window["date"] < INVASION_DATE) & climate_window[theme_col]).sum()
+        post_theme = ((climate_window["date"] >= INVASION_DATE) & climate_window[theme_col]).sum()
+
+        # Build 2x2 contingency table
+        # Rows: pre / post invasion
+        # Cols: theme mentioned / not mentioned
+        a = int(pre_theme)
+        b = int(pre_total - pre_theme)
+        c = int(post_theme)
+        d = int(post_total - post_theme)
+        contingency = [[a, b], [c, d]]
+
+        # Chi-square test
+        try:
+            chi2, p_value, dof, expected = chi2_contingency(contingency)
+        except ValueError:
+            chi2, p_value = float("nan"), float("nan")
+
+        pre_share = (a / pre_total * 100) if pre_total else 0
+        post_share = (c / post_total * 100) if post_total else 0
+
+        rows.append({
+            "theme": THEME_LABELS[theme_col],
+            "pre_count": a,
+            "post_count": c,
+            "pre_share_pct": round(pre_share, 3),
+            "post_share_pct": round(post_share, 3),
+            "abs_change_pct": round(post_share - pre_share, 3),
+            "chi2": round(chi2, 2) if chi2 == chi2 else None,
+            "p_value": round(p_value, 4) if p_value == p_value else None,
+            "significant_005": (p_value < 0.05) if p_value == p_value else False,
+        })
+
+    return pd.DataFrame(rows)
