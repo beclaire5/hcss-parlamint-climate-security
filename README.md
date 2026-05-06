@@ -133,6 +133,157 @@ streamlit run app/main.py
 - **Speech length is not normalised**: short procedural utterances by chairs are counted equally to substantive 10-minute speeches.
 - **No causality is claimed**: shifts in discourse correlate with external events (Paris Agreement, COVID, invasion of Ukraine) but the tool does not establish causal links.
 
+## Database schema design (SQL)
+
+Although the current implementation persists data in CSV (sufficient for a 22k-row analytical workload), a production-grade version of this tool would benefit from a relational schema. The schema below is designed for efficient querying, supports the analyses already implemented, and would scale to the full ParlaMint corpus across all 29 countries (~1B words).
+
+The design follows a normalised star-like schema with `speeches` as the fact table and three dimension tables (`speakers`, `parties`, `meetings`).
+
+### Schema
+
+```sql
+-- Dimension: speakers
+CREATE TABLE speakers (
+    speaker_id      VARCHAR(64)  PRIMARY KEY,
+    full_name       VARCHAR(200) NOT NULL,
+    sex             CHAR(1),
+    birth_year      SMALLINT,
+    wikipedia_url   TEXT
+);
+
+-- Dimension: parties (parliamentary groups)
+CREATE TABLE parties (
+    party_id        VARCHAR(64)  PRIMARY KEY,
+    abbreviation    VARCHAR(20)  NOT NULL,
+    full_name_en    VARCHAR(200),
+    full_name_nl    VARCHAR(200)
+);
+
+-- Bridge: a speaker can be affiliated with multiple parties over time
+CREATE TABLE speaker_affiliations (
+    speaker_id      VARCHAR(64)  NOT NULL REFERENCES speakers(speaker_id),
+    party_id        VARCHAR(64)  NOT NULL REFERENCES parties(party_id),
+    valid_from      DATE         NOT NULL,
+    valid_to        DATE,
+    PRIMARY KEY (speaker_id, party_id, valid_from)
+);
+
+-- Dimension: meetings (one row per parliamentary sitting)
+CREATE TABLE meetings (
+    meeting_id      VARCHAR(128) PRIMARY KEY,
+    meeting_date    DATE         NOT NULL,
+    house           VARCHAR(10)  NOT NULL CHECK (house IN ('Lower', 'Upper')),
+    subcorpus       VARCHAR(20)  NOT NULL CHECK (subcorpus IN ('reference', 'covid', 'unknown')),
+    title           TEXT,
+    n_speeches      INTEGER,
+    n_words         INTEGER
+);
+
+-- Fact: speeches (one row per utterance)
+CREATE TABLE speeches (
+    speech_id       VARCHAR(128) PRIMARY KEY,
+    meeting_id      VARCHAR(128) NOT NULL REFERENCES meetings(meeting_id),
+    speaker_id      VARCHAR(64)  REFERENCES speakers(speaker_id),
+    role            VARCHAR(32),                       -- chair, regular, etc.
+    n_words         INTEGER,
+    text            TEXT,                              -- full speech text
+    -- denormalised theme flags for fast filter queries:
+    is_climate_core             BOOLEAN DEFAULT FALSE,
+    is_climate_energy_transition BOOLEAN DEFAULT FALSE,
+    is_climate_policy           BOOLEAN DEFAULT FALSE,
+    is_climate_security_nexus   BOOLEAN DEFAULT FALSE,
+    is_climate_arctic           BOOLEAN DEFAULT FALSE
+);
+
+-- Optional: per-speech keyword matches, for fine-grained analysis
+CREATE TABLE speech_keywords (
+    speech_id       VARCHAR(128) NOT NULL REFERENCES speeches(speech_id),
+    keyword         VARCHAR(100) NOT NULL,
+    theme           VARCHAR(50)  NOT NULL,
+    occurrences     SMALLINT     NOT NULL DEFAULT 1,
+    PRIMARY KEY (speech_id, keyword)
+);
+```
+
+### Indexes for analytical queries
+
+```sql
+-- Time-range queries (e.g., "speeches per year on climate")
+CREATE INDEX idx_meetings_date ON meetings(meeting_date);
+
+-- Filter by speaker
+CREATE INDEX idx_speeches_speaker ON speeches(speaker_id);
+
+-- Theme-based filtering (the boolean flags allow fast partial indexes)
+CREATE INDEX idx_speeches_climate_security
+    ON speeches(speech_id) WHERE is_climate_security_nexus = TRUE;
+
+-- Keyword search
+CREATE INDEX idx_speech_keywords_keyword ON speech_keywords(keyword);
+CREATE INDEX idx_speech_keywords_theme ON speech_keywords(theme);
+
+-- Affiliations valid at a given date (for "who was in party X on date Y")
+CREATE INDEX idx_affiliations_validity
+    ON speaker_affiliations(speaker_id, valid_from, valid_to);
+```
+
+### Example queries
+
+```sql
+-- 1. Top 10 speakers on climate-security in a given period
+SELECT sp.full_name, p.abbreviation, COUNT(*) AS n_speeches
+FROM speeches s
+JOIN meetings m ON s.meeting_id = m.meeting_id
+JOIN speakers sp ON s.speaker_id = sp.speaker_id
+JOIN speaker_affiliations sa
+     ON sa.speaker_id = sp.speaker_id
+    AND m.meeting_date BETWEEN sa.valid_from AND COALESCE(sa.valid_to, CURRENT_DATE)
+JOIN parties p ON sa.party_id = p.party_id
+WHERE s.is_climate_security_nexus = TRUE
+  AND m.meeting_date BETWEEN '2022-02-24' AND '2022-07-12'
+GROUP BY sp.full_name, p.abbreviation
+ORDER BY n_speeches DESC
+LIMIT 10;
+
+-- 2. Monthly time series of climate themes
+SELECT DATE_TRUNC('month', m.meeting_date) AS month,
+       SUM(CASE WHEN s.is_climate_core              THEN 1 ELSE 0 END) AS core,
+       SUM(CASE WHEN s.is_climate_energy_transition THEN 1 ELSE 0 END) AS energy,
+       SUM(CASE WHEN s.is_climate_security_nexus    THEN 1 ELSE 0 END) AS security
+FROM speeches s
+JOIN meetings m ON s.meeting_id = m.meeting_id
+GROUP BY 1
+ORDER BY 1;
+
+-- 3. Climate intensity per party (corrects for party size)
+SELECT p.abbreviation,
+       COUNT(*) FILTER (WHERE s.is_climate_core
+                          OR s.is_climate_energy_transition
+                          OR s.is_climate_policy
+                          OR s.is_climate_security_nexus
+                          OR s.is_climate_arctic) AS climate_speeches,
+       COUNT(*) AS total_speeches,
+       ROUND(100.0 * COUNT(*) FILTER (WHERE s.is_climate_core OR s.is_climate_energy_transition
+                                        OR s.is_climate_policy OR s.is_climate_security_nexus
+                                        OR s.is_climate_arctic) / COUNT(*), 2) AS climate_share_pct
+FROM speeches s
+JOIN meetings m ON s.meeting_id = m.meeting_id
+JOIN speaker_affiliations sa
+     ON sa.speaker_id = s.speaker_id
+    AND m.meeting_date BETWEEN sa.valid_from AND COALESCE(sa.valid_to, CURRENT_DATE)
+JOIN parties p ON sa.party_id = p.party_id
+GROUP BY p.abbreviation
+HAVING COUNT(*) >= 1000
+ORDER BY climate_share_pct DESC;
+```
+
+### Scalability considerations
+
+- **Partitioning**: the `speeches` table partitioned by year (`meeting_date`) would keep historical queries fast even as the corpus grows to billions of rows
+- **Full-text search**: a generated `tsvector` column on `speeches.text` with a GIN index would enable fast keyword search without scanning all rows
+- **Materialized views**: pre-computed monthly aggregates (theme × party × month) refreshed daily would serve the dashboard without re-scanning the fact table
+- **Multi-country extension**: adding a `country` column (and corresponding partition key) on `meetings` would extend the schema to all 29 ParlaMint corpora with no structural change
+
 ## Possible extensions
 
 - **Sentiment analysis** of climate speeches over time, by party, to detect polarisation
