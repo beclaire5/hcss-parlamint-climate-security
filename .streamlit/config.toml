@@ -1,0 +1,7 @@
+[theme]
+# HCSS-inspired palette
+primaryColor = "#1f3a5f"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f4f8"
+textColor = "#1a1a1a"
+font = "serif"

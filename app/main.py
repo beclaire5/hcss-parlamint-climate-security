@@ -30,11 +30,58 @@ from src import analysis as A
 # ----------------------------------------------------------------------------
 st.set_page_config(
     page_title="Climate in Dutch Parliament — HCSS",
-    page_icon="🌍",
     layout="wide",
     initial_sidebar_state="expanded",
 )
-
+# Custom CSS for headers and titles — HCSS-inspired styling
+st.markdown("""
+<style>
+    /* Main page title */
+    h1 {
+        color: #1f3a5f !important;
+        font-weight: 700 !important;
+        border-bottom: 3px solid #1f3a5f;
+        padding-bottom: 0.3em;
+        margin-bottom: 0.8em;
+    }
+    /* Section headers */
+    h2 {
+        color: #1f3a5f !important;
+        font-weight: 600 !important;
+        margin-top: 1.5em;
+    }
+    /* Subsection headers */
+    h3 {
+        color: #1f3a5f !important;
+        font-weight: 600 !important;
+    }
+    /* Sidebar title */
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2 {
+        color: #1f3a5f !important;
+        border-bottom: none;
+    }
+    /* Metric labels */
+    [data-testid="stMetricLabel"] {
+        color: #5d6d7e !important;
+        font-weight: 600 !important;
+    }
+    /* Metric values */
+    [data-testid="stMetricValue"] {
+        color: #1f3a5f !important;
+        font-weight: 700 !important;
+    }
+    /* Tab labels */
+    .stTabs [data-baseweb="tab-list"] button {
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+    }
+    /* Active tab */
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+        color: #1f3a5f !important;
+        font-weight: 700 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ----------------------------------------------------------------------------
 # Data loading (cached so we only load once per session)
@@ -61,7 +108,7 @@ def load_all_speeches_metadata() -> pd.DataFrame:
 # Sidebar (filters)
 # ----------------------------------------------------------------------------
 def sidebar_filters(df: pd.DataFrame) -> dict:
-    st.sidebar.title("🌍 Filters")
+    st.sidebar.title("Filters")
     st.sidebar.markdown("Refine the analysis by year, party, and theme.")
 
     # Year range slider
@@ -126,7 +173,7 @@ def apply_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
 # ----------------------------------------------------------------------------
 def main():
     # Header
-    st.title("🌍 Climate in Dutch Parliamentary Discourse")
+    st.title("Climate in Dutch Parliamentary Discourse")
     st.markdown(
         "**An exploratory analysis of how the Dutch parliament discussed climate "
         "between 2014 and 2022, with a focus on the climate-security nexus.**"
@@ -163,12 +210,12 @@ def main():
     # Tabs for different views
     # ------------------------------------------------------------------------
     tab_overview, tab_actors, tab_themes, tab_war, tab_arctic, tab_explore = st.tabs([
-        "📈 Trends over time",
-        "👥 Actors",
-        "🎯 Themes",
-        "🇷🇺 Pre/Post invasion",
-        "❄️ Arctic deep-dive",
-        "🔍 Explore speeches",
+        "Trends over time",
+        "Actors",
+        "Themes",
+        "Pre/Post invasion",
+        "Arctic deep-dive",
+        "Explore speeches",
     ])
 
     # --- Trends ---
@@ -177,7 +224,7 @@ def main():
         yearly = A.speeches_per_year(df_filtered)
         fig = px.bar(yearly, x="year", y="count",
                      labels={"count": "Number of speeches"},
-                     color_discrete_sequence=["#1f4e79"])
+                     color_discrete_sequence=["#1f3a5f"])
         fig.update_layout(showlegend=False, xaxis=dict(tickmode="linear"))
         st.plotly_chart(fig, use_container_width=True)
 
@@ -201,7 +248,7 @@ def main():
                 top_sp["label"] = top_sp["speaker_name"] + " (" + top_sp["party_abbr"].fillna("?") + ")"
                 fig = px.bar(top_sp, x="count", y="label", orientation="h",
                              labels={"count": "Speeches", "label": ""},
-                             color_discrete_sequence=["#1f4e79"])
+                             color_discrete_sequence=["#1f3a5f"])
                 fig.update_layout(yaxis={"categoryorder": "total ascending"})
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -211,7 +258,7 @@ def main():
             if not top_p.empty:
                 fig = px.bar(top_p, x="count", y="party_abbr", orientation="h",
                              labels={"count": "Speeches", "party_abbr": ""},
-                             color_discrete_sequence=["#2e7d32"])
+                             color_discrete_sequence=["#3a8a5f"])
                 fig.update_layout(yaxis={"categoryorder": "total ascending"})
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -223,7 +270,7 @@ def main():
             fig = px.bar(intensity, x="climate_share_pct", y="party_abbr", orientation="h",
                          labels={"climate_share_pct": "% of speeches that mention climate",
                                  "party_abbr": ""},
-                         color_discrete_sequence=["#558b2f"])
+                         color_discrete_sequence=["#3a6ea5"])
             fig.update_layout(yaxis={"categoryorder": "total ascending"})
             st.plotly_chart(fig, use_container_width=True)
 
@@ -235,7 +282,7 @@ def main():
             fig = px.bar(theme_dist.sort_values("count"), x="count", y="theme",
                          orientation="h",
                          labels={"count": "Speeches", "theme": ""},
-                         color_discrete_sequence=["#1f4e79"])
+                         color_discrete_sequence=["#1f3a5f"])
             st.plotly_chart(fig, use_container_width=True)
 
         st.markdown("**Note**: themes can overlap — a single speech may mention both 'core' and 'security_nexus' keywords.")
@@ -269,7 +316,7 @@ def main():
             yearly_arc = df_arctic.groupby("year").size().reset_index(name="count")
             fig = px.bar(yearly_arc, x="year", y="count",
                          labels={"count": "Arctic mentions"},
-                         color_discrete_sequence=["#0277bd"])
+                         color_discrete_sequence=["#1f3a5f"])
             fig.update_layout(xaxis=dict(tickmode="linear"))
             st.plotly_chart(fig, use_container_width=True)
 
