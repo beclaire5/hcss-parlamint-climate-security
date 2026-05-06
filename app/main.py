@@ -246,6 +246,13 @@ def main():
     # --- Trends ---
     with tab_overview:
         st.subheader("Climate-related speeches per year")
+        st.caption(
+            "Annual count of parliamentary speeches that mention at least one "
+            "climate-related keyword. The 2014 figure is partial (corpus starts in April). "
+            "The 2019 peak coincides with the Dutch Climate Act (Klimaatwet) and global "
+            "climate mobilisation; the 2020 dip reflects COVID-19 dominating parliamentary "
+            "agenda; the 2022 figure covers only January–July."
+        )
         yearly = A.speeches_per_year(df_filtered)
         fig = px.bar(yearly, x="year", y="count",
                      labels={"count": "Number of speeches"},
@@ -254,6 +261,12 @@ def main():
         st.plotly_chart(fig, use_container_width=True)
 
         st.subheader("Climate themes over time")
+        st.caption(
+            "Breakdown of climate speeches by sub-theme. Note that themes can overlap "
+            "(a speech can mention both 'core' climate language and 'energy transition'). "
+            "The climate-security nexus and Arctic dimension remain consistently smaller in volume "
+            "but show distinct dynamics."
+        )
         themed = A.speeches_per_year_by_theme(df_filtered)
         if not themed.empty:
             fig2 = px.line(themed, x="year", y="count", color="theme",

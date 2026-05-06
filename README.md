@@ -142,6 +142,28 @@ streamlit run app/main.py
 - **Migration to v5.0** which adds a third subcorpus ("war") and improved language tagging
 - **HCSS-style visual identity**: full integration of the HCSS brand palette and typography for a polished demo
 
+## Key findings from the analysis
+
+The tool surfaces several patterns that align directly with HCSS research priorities:
+
+**1. The climate-security nexus more than doubled after the Russian invasion of Ukraine.**
+A chi-square test on the discourse window 2021-01-01 → 2022-07-12 shows a highly significant shift (χ² = 45.22, p < 0.0001) in the share of speeches mentioning climate-security keywords (energy security, food security, climate migration, drought, etc.). The share rose from 0.13% pre-invasion to 0.32% post-invasion — a 144% relative increase.
+
+**2. The "core climate" framing receded as the security framing rose.**
+Speeches mentioning core climate language (CO2, emissions, greenhouse gases) and policy/treaty language (Paris Agreement, IPCC, COP) both decreased significantly post-invasion (p < 0.005 for both). The discourse appears to have re-securitised: climate is increasingly framed through the lens of geopolitical and energy security.
+
+**3. Theme correlations reveal competing framings, not complementary ones.**
+The Pearson correlation between monthly rates of "core climate" and "energy transition" themes is **−0.85**: when one rises in the parliamentary discourse, the other tends to fall. The two framings appear to compete for parliamentary attention rather than reinforce each other. Climate policy, in contrast, correlates positively with core climate (+0.62), suggesting these two are typically discussed together.
+
+**4. The climate-security nexus occupies its own discursive space.**
+The climate-security theme shows near-zero correlations with all other themes (-0.10 to -0.14). This suggests it is a distinct register of speech rather than a sub-flavour of the mainstream climate debate — consistent with the idea that climate-security is still an emerging strand of policy discourse in the Netherlands.
+
+**5. Climate champions cluster around expected actors but with one surprise.**
+Top speakers on climate include Eric Wiebes (VVD, former Climate Minister), Mark Rutte (VVD, Prime Minister), Henk Kamp (VVD, former Economic Affairs Minister), and Rob Jetten (D66, current Climate and Energy Minister) — all expected. But two members of the small Party for the Animals (PvdD), Esther Ouwehand and Lammert van Raan, also rank in the top 10, despite the party's modest size. Adjusting for party size, PvdD, GroenLinks, and D66 lead in climate intensity (share of their speeches that are climate-related), which more accurately reflects climate prioritisation than absolute counts.
+
+**6. Latent topic clusters reveal six distinct registers in which climate is discussed.**
+Unsupervised TF-IDF + K-Means clustering of climate speeches surfaces six recurring patterns: (i) carbon taxation, (ii) economic governance of the transition, (iii) interrogative/critical sustainability questions, (iv) institutional politics (cabinet, European level), (v) parliamentary procedural language, and (vi) concrete energy transition (gas, wind, hydrogen). Four of the six clusters have a clear thematic identity; the remaining two reflect generic procedural language common to all parliamentary debates.
+
 ## Tech stack
 
 - **Python 3.13**
