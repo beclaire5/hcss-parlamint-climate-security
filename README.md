@@ -129,7 +129,7 @@ streamlit run app/main.py
 ## Limitations
 
 - The English text is **machine-translated**: nuances of Dutch political vocabulary may be lost, especially idiomatic expressions and party-specific framing.
-- **Keyword-based filtering** is a coarse instrument. A speech that discusses climate without using a keyword from the list is missed; a speech that mentions a keyword in a tangential way is included. More sophisticated approaches (semantic similarity, classifier trained on labelled examples) would improve recall and precision.
+- **Keyword-based filtering** is a coarse instrument. A speech that discusses climate without using a keyword from the list is missed; a speech that mentions a keyword in a tangential way is included. For example, the Arctic-theme keyword "Greenland" occasionally captures speeches about the 1982 Greenlandic withdrawal from the European Community ("Grexit") rather than the climate-driven retreat of Greenland's ice sheet. Manual inspection of 5 sampled Arctic-tagged speeches yielded 4 true positives and 1 false positive (~80% precision). More sophisticated approaches (semantic similarity, supervised classifier on labelled examples, co-occurrence filtering) would improve both recall and precision.
 - **Speech length is not normalised**: short procedural utterances by chairs are counted equally to substantive 10-minute speeches.
 - **No causality is claimed**: shifts in discourse correlate with external events (Paris Agreement, COVID, invasion of Ukraine) but the tool does not establish causal links.
 
