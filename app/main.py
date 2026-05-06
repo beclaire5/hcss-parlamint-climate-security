@@ -276,7 +276,16 @@ def main():
             st.plotly_chart(fig2, use_container_width=True)
 
     # --- Actors ---
+    # --- Actors ---
     with tab_actors:
+        st.caption(
+            "Two complementary views: absolute climate speech counts (left and centre) "
+            "highlight which actors dominate by volume; **climate intensity** (bottom) "
+            "shows the *share* of each party's total speeches that mention climate, "
+            "correcting for party size. A small party can have very high climate "
+            "intensity even with few absolute speeches. This often reveals the true "
+            "climate prioritisers in the parliament."
+        )
         col_left, col_right = st.columns(2)
 
         with col_left:
@@ -313,8 +322,16 @@ def main():
             st.plotly_chart(fig, use_container_width=True)
 
     # --- Themes ---
+    # --- Themes ---
     with tab_themes:
         st.subheader("Distribution of climate themes")
+        st.caption(
+            "Each climate speech is tagged with one or more of five sub-themes "
+            "based on a curated keyword dictionary. Themes intentionally overlap: "
+            "a single speech can mention both 'core' climate language (CO2, emissions) "
+            "and 'security nexus' language (food security, drought). The overlap is "
+            "itself analytically interesting."
+        )
         theme_dist = A.theme_distribution(df_filtered)
         if not theme_dist.empty:
             fig = px.bar(theme_dist.sort_values("count"), x="count", y="theme",
@@ -403,6 +420,7 @@ def main():
                 """)
 
     # --- Arctic ---
+    # --- Arctic ---
     with tab_arctic:
         st.subheader("The Arctic in Dutch parliamentary debate")
         df_arctic = df[df.get("is_climate_arctic", pd.Series(False, index=df.index))]
@@ -411,6 +429,13 @@ def main():
             f"mentioned the Arctic in **{len(df_arctic)} climate-related speeches** between 2014 and 2022. "
             f"This reflects the country's status as an Arctic Council observer and its broader engagement "
             f"in climate-security discussions."
+        )
+        st.caption(
+            "The Arctic is a paradigmatic case of the climate-security nexus: melting ice "
+            "opens new shipping routes, strategic resource access shifts, and great-power "
+            "competition (Russia, China, NATO) intensifies. Although volume is small "
+            "(72 speeches), the temporal pattern and the speakers involved offer a "
+            "qualitative window into how climate-security thinking surfaces in Dutch debate."
         )
         if not df_arctic.empty:
             yearly_arc = df_arctic.groupby("year").size().reset_index(name="count")
@@ -492,10 +517,14 @@ def main():
             st.info("No speeches match your filters.")
 
     # Footer
+    # Footer
     st.markdown("---")
     st.caption(
-        "Built by Chiara Barontini · HCSS Datalab Internship Application · "
-        "Data from [ParlaMint-NL](https://www.clarin.si/repository/xmlui/handle/11356/1910) (CC BY 4.0)"
+        "**Chiara Barontini** · HCSS Datalab Internship Test · May 2026  \n"
+        "Code: [github.com/beclaire5/hcss-parlamint-climate-security]"
+        "(https://github.com/beclaire5/hcss-parlamint-climate-security) · "
+        "Data: [ParlaMint-NL-en v4.1](https://www.clarin.si/repository/xmlui/handle/11356/1910) (CC BY 4.0)  \n"
+        "*This is a candidate application; not an official HCSS product.*"
     )
 
 
