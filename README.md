@@ -34,12 +34,12 @@ The app provides six analytical tabs:
 
 | Tab | What it shows |
 |-----|---------------|
-| 📈 **Trends over time** | Annual volume of climate speeches and breakdown by sub-theme |
-| 👥 **Actors** | Top speakers, top parties, and a "climate intensity" metric correcting for party size |
-| 🎯 **Themes** | Distribution across five sub-themes: core climate, energy transition, policy, climate–security nexus, Arctic |
-| 🇷🇺 **Pre/Post invasion** | Comparison of climate discourse before vs. after 24 February 2022 |
-| ❄️ **Arctic deep-dive** | A focused case study on the Arctic dimension, including sample speeches |
-| 🔍 **Explore speeches** | Random sampling of individual speeches matching the active filters |
+| **Trends over time** | Annual volume of climate speeches and breakdown by sub-theme |
+| **Actors** | Top speakers, top parties, and a "climate intensity" metric correcting for party size |
+| **Themes** | Distribution across five sub-themes: core climate, energy transition, policy, climate–security nexus, Arctic |
+| **Pre/Post invasion** | Comparison of climate discourse before vs. after 24 February 2022 |
+| **Arctic deep-dive** | A focused case study on the Arctic dimension, including sample speeches |
+| **Explore speeches** | Random sampling of individual speeches matching the active filters |
 
 All views respond to a global filter set in the sidebar: **year range**, **parties**, **chamber**, and **theme**.
 
