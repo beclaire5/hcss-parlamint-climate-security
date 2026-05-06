@@ -172,15 +172,38 @@ def apply_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
 # Main app
 # ----------------------------------------------------------------------------
 def main():
-    # Header
-    st.title("Climate in Dutch Parliamentary Discourse")
+    # Header with HCSS logo (rendered via HTML for crisper display)
+    LOGO_PATH = PROJECT_ROOT / "assets" / "hcss_logo.png"
+
+    if LOGO_PATH.exists():
+        import base64
+        with open(LOGO_PATH, "rb") as f:
+            logo_b64 = base64.b64encode(f.read()).decode()
+        st.markdown(
+            f"""
+            <div style="display: flex; align-items: center; gap: 24px; margin-bottom: 16px;">
+                <img src="data:image/png;base64,{logo_b64}" width="90" height="90"
+                     style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges;" />
+                <div>
+                    <h1 style="margin: 0; padding: 0; border: none; color: #1f3a5f; font-weight: 700;">
+                        Climate in Dutch Parliamentary Discourse
+                    </h1>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.title("Climate in Dutch Parliamentary Discourse")
+
     st.markdown(
         "**An exploratory analysis of how the Dutch parliament discussed climate "
         "between 2014 and 2022, with a focus on the climate-security nexus.**"
     )
-    st.markdown(
-        "*Built for the HCSS Datalab Internship application. "
-        "Source: [ParlaMint-NL-en v4.1](https://www.clarin.si/repository/xmlui/handle/11356/1910).*"
+    st.caption(
+        "Submission for the HCSS Datalab Internship Test, May 2026. "
+        "Source: [ParlaMint-NL-en v4.1](https://www.clarin.si/repository/xmlui/handle/11356/1910). "
+        "This is a candidate application; not an official HCSS product."
     )
 
     # Load data
