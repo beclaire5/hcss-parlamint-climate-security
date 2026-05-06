@@ -232,12 +232,14 @@ def main():
     # ------------------------------------------------------------------------
     # Tabs for different views
     # ------------------------------------------------------------------------
-    tab_overview, tab_actors, tab_themes, tab_war, tab_arctic, tab_explore = st.tabs([
+    (tab_overview, tab_actors, tab_themes, tab_war, tab_arctic,
+     tab_patterns, tab_explore) = st.tabs([
         "Trends over time",
         "Actors",
         "Themes",
         "Pre/Post invasion",
         "Arctic deep-dive",
+        "Patterns",
         "Explore speeches",
     ])
 
@@ -348,7 +350,58 @@ def main():
             for _, row in samples.iterrows():
                 with st.expander(f"{row['date'].strftime('%Y-%m-%d') if hasattr(row['date'], 'strftime') else row['date']} — {row['speaker_name']} ({row['party_abbr']})"):
                     st.write(clean_tokenized_text(row["text"]))
+    # --- Patterns (correlation + clustering) ---
+    with tab_patterns:
+        st.subheader("Theme correlation over time")
+        st.caption(
+            "Pearson correlation between the monthly rates of each climate theme. "
+            "Themes that rise and fall together appear in red; those that move "
+            "independently or inversely appear lighter or blue. "
+            "This reveals which strands of climate discourse are coupled and which evolve separately."
+        )
+        corr = A.theme_correlation_over_time(df_filtered)
+        if not corr.empty:
+            fig = px.imshow(
+                corr,
+                text_auto=".2f",
+                aspect="auto",
+                color_continuous_scale="RdBu_r",
+                color_continuous_midpoint=0,
+                zmin=-1, zmax=1,
+            )
+            fig.update_layout(height=500)
+            st.plotly_chart(fig, use_container_width=True)
 
+        st.markdown("---")
+
+        st.subheader("Latent topic clusters (TF-IDF + K-Means)")
+        st.caption(
+            "Beyond the pre-defined keyword themes, an unsupervised clustering of "
+            "climate speeches reveals emergent topics. Each speech is encoded as "
+            "TF-IDF vectors; K-Means groups them into 6 latent clusters; the 2D "
+            "projection (Truncated SVD) shows their separation."
+        )
+        n_clusters = st.slider("Number of clusters", min_value=3, max_value=10, value=6)
+
+        with st.spinner("Clustering speeches (this takes ~10 seconds)..."):
+            df_clusters, top_terms = A.cluster_speeches(df_filtered, n_clusters=n_clusters)
+
+        # 2D scatter
+        df_clusters["cluster_label"] = "Cluster " + df_clusters["cluster"].astype(str)
+        fig = px.scatter(
+            df_clusters,
+            x="pca_x", y="pca_y",
+            color="cluster_label",
+            hover_data=["speaker_name", "party_abbr", "year"],
+            opacity=0.6,
+            labels={"pca_x": "Dimension 1", "pca_y": "Dimension 2"},
+        )
+        fig.update_layout(height=500)
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown("**Top distinguishing terms per cluster**")
+        for i, terms in enumerate(top_terms):
+            st.write(f"**Cluster {i}**: {', '.join(terms)}")
     # --- Explore ---
     with tab_explore:
         st.subheader("Browse individual speeches")

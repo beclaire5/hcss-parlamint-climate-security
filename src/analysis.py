@@ -168,3 +168,86 @@ def get_speech_samples(df: pd.DataFrame, n: int = 5, random_state: int = 42) -> 
     cols = [c for c in cols if c in df.columns]
     sample = df.sample(min(n, len(df)), random_state=random_state)
     return sample[cols].reset_index(drop=True)
+# ----------------------------------------------------------------------------
+# Correlation analysis
+# ----------------------------------------------------------------------------
+
+def theme_correlation_over_time(df: pd.DataFrame) -> pd.DataFrame:
+    """Compute correlation matrix between climate themes based on their
+    monthly co-occurrence rates in the corpus.
+
+    For each month, we compute the share of climate speeches that mention
+    each theme. The correlation matrix tells us which themes tend to rise
+    and fall together in the parliamentary discourse.
+    """
+    df_local = df.copy()
+    df_local["month"] = pd.to_datetime(df_local["date"]).dt.to_period("M")
+
+    # For each month, fraction of speeches that mention each theme
+    monthly_rates = df_local.groupby("month")[THEME_COLS].mean()
+
+    # Pearson correlation matrix
+    corr = monthly_rates.corr()
+    # Rename to readable labels
+    corr = corr.rename(index=THEME_LABELS, columns=THEME_LABELS)
+    return corr
+
+
+# ----------------------------------------------------------------------------
+# Cluster analysis (TF-IDF + K-Means)
+# ----------------------------------------------------------------------------
+
+def cluster_speeches(
+    df: pd.DataFrame,
+    n_clusters: int = 6,
+    sample_size: int = 5000,
+    random_state: int = 42,
+) -> tuple[pd.DataFrame, list[list[str]]]:
+    """Cluster climate speeches into latent topics using TF-IDF + K-Means.
+
+    Returns:
+        - df_with_clusters: input df with extra columns 'cluster' (int) and
+          'pca_x', 'pca_y' (2D projection for plotting)
+        - top_terms: list of lists, where top_terms[i] contains the top
+          distinguishing terms for cluster i
+    """
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.cluster import KMeans
+    from sklearn.decomposition import TruncatedSVD
+
+    # Sample for speed; clustering on 22k speeches with TF-IDF is heavy
+    if len(df) > sample_size:
+        df_sample = df.sample(sample_size, random_state=random_state).copy().reset_index(drop=True)
+    else:
+        df_sample = df.copy().reset_index(drop=True)
+
+    # TF-IDF on speech text
+    # max_features keeps it fast; min_df removes ultra-rare terms; stop_words removes English filler
+    vectorizer = TfidfVectorizer(
+        max_features=2000,
+        min_df=5,
+        max_df=0.5,
+        stop_words="english",
+        ngram_range=(1, 2),
+    )
+    X = vectorizer.fit_transform(df_sample["text"].fillna(""))
+
+    # K-Means clustering
+    km = KMeans(n_clusters=n_clusters, random_state=random_state, n_init=10)
+    df_sample["cluster"] = km.fit_predict(X)
+
+    # 2D projection for plotting (TruncatedSVD = LSA, works on sparse matrices)
+    svd = TruncatedSVD(n_components=2, random_state=random_state)
+    coords = svd.fit_transform(X)
+    df_sample["pca_x"] = coords[:, 0]
+    df_sample["pca_y"] = coords[:, 1]
+
+    # Top distinguishing terms per cluster
+    feature_names = vectorizer.get_feature_names_out()
+    top_terms = []
+    for i in range(n_clusters):
+        center = km.cluster_centers_[i]
+        top_idx = center.argsort()[::-1][:10]
+        top_terms.append([feature_names[j] for j in top_idx])
+
+    return df_sample, top_terms
