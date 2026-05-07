@@ -24,24 +24,50 @@ Sub-questions explored in the tool:
 
 ## Live application
 
+![Overview of the application](docs/screenshots/01_overview.png)
+
 Launch the app locally:
 
 ```bash
 streamlit run app/main.py
 ```
 
-The app provides six analytical tabs:
+The app provides eight analytical tabs:
 
 | Tab | What it shows |
 |-----|---------------|
 | **Trends over time** | Annual volume of climate speeches and breakdown by sub-theme |
 | **Actors** | Top speakers, top parties, and a "climate intensity" metric correcting for party size |
-| **Themes** | Distribution across five sub-themes: core climate, energy transition, policy, climate–security nexus, Arctic |
-| **Pre/Post invasion** | Comparison of climate discourse before vs. after 24 February 2022 |
+| **Themes** | Distribution across five sub-themes plus a word cloud that responds to the active filters |
+| **Pre/Post invasion** | Chi-square significance test comparing climate discourse before vs. after 24 February 2022 |
 | **Arctic deep-dive** | A focused case study on the Arctic dimension, including sample speeches |
+| **Patterns** | Theme correlation heatmap and TF-IDF/K-Means clustering of speeches into latent topics |
+| **Sentiment** | VADER sentiment analysis of climate speeches, broken down by year, party, and theme |
 | **Explore speeches** | Random sampling of individual speeches matching the active filters |
 
 All views respond to a global filter set in the sidebar: **year range**, **parties**, **chamber**, and **theme**.
+
+### Selected views
+
+**Actors — speakers and parties most active on climate**
+
+![Actors view](docs/screenshots/02_actors.png)
+
+**Themes — word cloud filtered to the climate-security nexus surfaces a distinct vocabulary (farmer, drought, water, refugee, war)**
+
+![Word cloud — climate-security nexus](docs/screenshots/03_themes_wordcloud.png)
+
+**Pre/Post invasion — chi-square significance test confirms a real shift in discourse**
+
+![Pre/Post invasion analysis](docs/screenshots/04_pre_post_invasion.png)
+
+**Patterns — theme correlation reveals competing rather than complementary framings**
+
+![Theme correlation heatmap](docs/screenshots/05_patterns_correlation.png)
+
+**Sentiment — clear ideological gradient: government-aligned parties speak in more positive registers, opposition (left and far right) in more critical ones**
+
+![Sentiment by party](docs/screenshots/06_sentiment_by_party.png)
 
 ## Data pipeline
 
