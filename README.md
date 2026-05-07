@@ -88,26 +88,30 @@ Interactive Streamlit dashboard
 ```
 
 ## Project structure
-
 ```
 hcss-parlamint-climate-security/
+├── .streamlit/
+│   └── config.toml                # Streamlit theme (HCSS-inspired palette)
 ├── app/
-│   └── main.py                    # Streamlit application
+│   └── main.py                    # Streamlit application 
 ├── src/
+│   ├── __init__.py                # Package marker
 │   ├── data_loader.py             # XML parsing, speaker/party metadata
 │   ├── text_processing.py         # Keyword filtering, theme tagging, text cleaning
-│   ├── analysis.py                # Analytical functions (trends, actors, comparisons)
-│   └── config.py                  # (Reserved)
+│   └── analysis.py                # Analytical functions (descriptive, inferential, clustering, sentiment)
 ├── notebooks/
 │   ├── 01_explore_data.ipynb      # Initial data exploration and full-corpus parsing
-│   └── 02_climate_filtering.ipynb # Keyword validation and climate subset creation
+│   └── 02_climate_filtering.ipynb # Keyword validation, climate subset, sentiment scoring
 ├── data/
 │   ├── raw/                       # ParlaMint XML (excluded from git)
 │   └── processed/                 # Generated CSVs (excluded from git)
+├── docs/
+│   └── screenshots/               # README screenshots
+├── assets/
+│   └── hcss_logo.png              # HCSS logo (official, used under their published logo set)
 ├── requirements.txt
 └── README.md
 ```
-
 ## Installation
 
 **Prerequisites**: Python 3.10+, ~5 GB free disk space.
