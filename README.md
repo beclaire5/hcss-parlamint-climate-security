@@ -348,6 +348,9 @@ Top speakers on climate include Eric Wiebes (VVD, former Climate Minister), Mark
 **6. Latent topic clusters reveal six distinct registers in which climate is discussed.**
 Unsupervised TF-IDF + K-Means clustering of climate speeches surfaces six recurring patterns: (i) carbon taxation, (ii) economic governance of the transition, (iii) interrogative/critical sustainability questions, (iv) institutional politics (cabinet, European level), (v) parliamentary procedural language, and (vi) concrete energy transition (gas, wind, hydrogen). Four of the six clusters have a clear thematic identity; the remaining two reflect generic procedural language common to all parliamentary debates.
 
+**7. Sentiment reveals a political gradient and a thematic gradient.** 
+VADER sentiment scores show two distinct patterns. **By party**, sentiment maps almost perfectly onto the political spectrum: government-aligned and centrist parties (CU, D66, VVD, CDA, SGP) score around 0.70 in compound sentiment; left opposition (SP, PvdD) drops to 0.45–0.50; far-right opposition (FvD, PVV) scores 0.28–0.35. The same low sentiment score reflects opposite framings. Left parties are critical of governmental inaction; far-right parties are critical of climate policy itself. **By theme**, the climate-security nexus is the most negative register (0.55 vs. 0.69–0.77 for other themes), confirming quantitatively that security-coded climate speech uses a more urgent and alarmist register. *Caveat*: VADER is calibrated on English social-media text and applied here to machine-translated parliamentary prose; absolute scores should be read with caution, but relative comparisons are informative.
+
 ## Tech stack
 
 - **Python 3.13**
