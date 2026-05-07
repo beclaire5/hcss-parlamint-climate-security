@@ -339,7 +339,23 @@ def main():
                          color_discrete_sequence=["#1f3a5f"])
             st.plotly_chart(fig, use_container_width=True)
 
-        st.markdown("**Note**: themes can overlap — a single speech may mention both 'core' and 'security_nexus' keywords.")
+        st.markdown("---")
+        st.subheader("What words dominate the climate discourse?")
+        st.caption(
+            "A word cloud of the most frequent terms in the filtered speeches, "
+            "excluding parliamentary boilerplate (chairman, minister, member). "
+            "Filter by theme in the sidebar to see which words dominate each "
+            "framing, for example, the climate-security theme surfaces words "
+            "like 'security', 'energy', 'crisis', 'water', while the energy "
+            "transition theme emphasises 'gas', 'wind', 'renewable', 'hydrogen'."
+        )
+
+        with st.spinner("Generating word cloud..."):
+            wc_fig = A.generate_wordcloud_image(df_filtered, max_words=80)
+            if wc_fig is not None:
+                st.pyplot(wc_fig, use_container_width=True)
+            else:
+                st.info("Not enough data to generate a word cloud with the current filters.")
 
     # --- Pre/Post invasion ---
     with tab_war:

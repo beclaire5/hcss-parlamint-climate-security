@@ -403,3 +403,144 @@ def sentiment_by_theme(df: pd.DataFrame) -> pd.DataFrame:
             "pct_negative": round((sub["sentiment_label"] == "negative").mean() * 100, 1),
         })
     return pd.DataFrame(rows)
+# ----------------------------------------------------------------------------
+# Word cloud: most distinctive terms in a subset of speeches
+# ----------------------------------------------------------------------------
+
+def generate_wordcloud_image(
+    df: pd.DataFrame,
+    text_col: str = "text",
+    max_words: int = 80,
+    width: int = 1000,
+    height: int = 500,
+    background_color: str = "white",
+    extra_stopwords: list[str] | None = None,
+):
+    """Generate a WordCloud image from a DataFrame of speeches.
+
+    Returns a matplotlib Figure ready to be passed to st.pyplot().
+
+    Custom stopwords remove parliamentary boilerplate ("chairman", "minister",
+    "mr", etc.) that would otherwise dominate the cloud.
+    """
+    from wordcloud import WordCloud, STOPWORDS
+    import matplotlib.pyplot as plt
+
+    # Combine all text into one string
+    if df.empty or text_col not in df.columns:
+        return None
+    text = " ".join(df[text_col].fillna("").astype(str))
+
+    # Custom stopwords for parliamentary text
+    parliamentary_stopwords = {
+        # Parliamentary boilerplate
+        "mr", "mrs", "chairman", "chairwoman", "minister", "secretary",
+        "state", "member", "members", "house", "chamber", "speaker",
+        "president", "cabinet", "government",
+        # Polite framing
+        "thank", "thanks", "please", "say", "said", "saying",
+        "think", "believe", "want", "wants", "wanted", "know", "knew",
+        "ask", "asked", "asking", "answer",
+        # Generic verbs
+        "going", "go", "goes", "went", "gone",
+        "come", "comes", "came", "made", "make", "makes", "making",
+        "do", "does", "did", "done", "doing",
+        "take", "takes", "took", "taken", "taking",
+        "get", "gets", "got", "getting",
+        "see", "sees", "saw", "seen",
+        "give", "gives", "gave", "given", "giving",
+        "look", "looks", "looked", "looking",
+        "put", "puts", "putting",
+        "use", "uses", "used", "using",
+        "work", "works", "worked", "working",
+        # Modals & filler
+        "would", "could", "should", "will", "shall", "may", "must", "might",
+        "can", "cannot",
+        # Quantifiers / adjectives
+        "good", "well", "much", "many", "lot", "lots", "really",
+        "even", "also", "still", "now", "ever", "never", "always",
+        "one", "two", "three", "first", "second", "third", "last",
+        "new", "old", "big", "small", "long", "short",
+        "important", "kind", "sort", "way", "ways", "case", "cases",
+        "thing", "things", "something", "anything", "nothing", "everything",
+        "people", "person", "today", "yesterday", "tomorrow",
+        "yes", "no", "yeah", "ok", "right", "wrong", "true", "false",
+        "like", "likes", "liked", "liking",
+        "agree", "agreed", "disagree",
+        "different", "same", "other", "others", "another",
+        "fact", "facts",
+        # Tokenisation artifacts (apostrophes, fragments)
+        "n", "t", "s", "re", "ve", "ll", "d", "m", "u",
+        "n't", "'s", "'re", "'ve", "'ll", "'d", "'m",
+        # Document-specific noise
+        "lutz", "jacobi", "sharon", "dijksma", "esther", "ouwehand",
+        "european", "europe", "netherlands", "dutch",  # common but uninformative for NL corpus
+        # Numbers & generic
+        "year", "years", "time", "times", "day", "days", "week", "weeks",
+        "month", "months", "number", "numbers", "part", "parts",
+        "point", "points", "group", "groups", "country", "countries",
+        "system", "systems", "law", "laws", "policy", "policies",
+        "question", "questions", "problem", "problems",
+        "course", "example", "examples",
+        "motion", "motions", "amendment", "amendments",
+        "debate", "debates", "discussion",
+        "money", "cost", "costs",
+        "support", "supported", "supports",
+        "important", "possible", "impossible",
+        "actually", "whether", "perhaps", "maybe",
+        "end", "begin", "start", "started",
+        "side", "side",
+        "able", "unable",
+        "concerned", "concern",
+        "need", "needs", "needed",
+        "mean", "means", "meant",
+        "sure", "certain", "clear",
+        # Additional cleanup based on visual inspection
+        "already", "far", "back", "next", "term", "terms", "us", "let",
+        "gonna", "ya", "uh", "yeah",
+        "place", "places", "step", "steps", "order", "orders",
+        "issue", "issues", "result", "results", "find", "finds", "found",
+        "view", "views", "report", "reports", "call", "calls", "called",
+        "say", "says", "talk", "talks", "talking",
+        "achieve", "achieved", "ensure", "ensured", "increase", "increased",
+        "continue", "continued", "hear", "heard", "keep", "kept",
+        "decision", "decisions", "proposal", "proposals",
+        "agreement", "agreements", "addition", "without", "within",
+        "everyone", "yet", "less", "least", "moment",
+        "billion", "million", "deal", "pay",
+        "necessary", "consequence", "consequences",
+        "letter", "letters", "lead", "led", "leads",
+        "hand", "hands", "home", "talking",
+        "council", "commission",
+        "rule", "rules", "step", "basis",
+        "prepared", "prime", "talk",
+        "interest", "interests", "response", "responses", "care",
+        "live", "lives", "lived",
+        "include", "includes", "included",
+        "especially", "particularly", "really", "actually", "perhaps", "often",
+        "everyone", "anyone", "no one", "every",
+        "achieve", "increase",
+        "vvd",  # party abbr already represented elsewhere
+    }
+        # Note: keep core climate words IN to make the cloud meaningful
+    stopwords = set(STOPWORDS) | parliamentary_stopwords
+    if extra_stopwords:
+        stopwords |= set(extra_stopwords)
+
+    wc = WordCloud(
+        width=width,
+        height=height,
+        background_color=background_color,
+        max_words=max_words,
+        stopwords=stopwords,
+        colormap="Blues",  # HCSS-friendly blue scale
+        relative_scaling=0.5,
+        min_font_size=10,
+        collocations=True,  # allow bigrams like "climate change"
+    ).generate(text)
+
+    fig, ax = plt.subplots(figsize=(width / 100, height / 100))
+    ax.imshow(wc, interpolation="bilinear")
+    ax.axis("off")
+    fig.tight_layout(pad=0)
+    return fig
