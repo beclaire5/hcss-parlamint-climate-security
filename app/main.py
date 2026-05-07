@@ -233,13 +233,14 @@ def main():
     # Tabs for different views
     # ------------------------------------------------------------------------
     (tab_overview, tab_actors, tab_themes, tab_war, tab_arctic,
-     tab_patterns, tab_explore) = st.tabs([
+     tab_patterns, tab_sentiment, tab_explore) = st.tabs([
         "Trends over time",
         "Actors",
         "Themes",
         "Pre/Post invasion",
         "Arctic deep-dive",
         "Patterns",
+        "Sentiment",
         "Explore speeches",
     ])
 
@@ -276,10 +277,9 @@ def main():
             st.plotly_chart(fig2, use_container_width=True)
 
     # --- Actors ---
-    # --- Actors ---
     with tab_actors:
         st.caption(
-            "Two complementary views: absolute climate speech counts (left and centre) "
+            "Two complementary views: absolute climate speech counts (left and right) "
             "highlight which actors dominate by volume; **climate intensity** (bottom) "
             "shows the *share* of each party's total speeches that mention climate, "
             "correcting for party size. A small party can have very high climate "
@@ -321,7 +321,6 @@ def main():
             fig.update_layout(yaxis={"categoryorder": "total ascending"})
             st.plotly_chart(fig, use_container_width=True)
 
-    # --- Themes ---
     # --- Themes ---
     with tab_themes:
         st.subheader("Distribution of climate themes")
@@ -419,7 +418,7 @@ def main():
                 association, not causation.
                 """)
 
-    # --- Arctic ---
+
     # --- Arctic ---
     with tab_arctic:
         st.subheader("The Arctic in Dutch parliamentary debate")
@@ -502,6 +501,106 @@ def main():
         st.markdown("**Top distinguishing terms per cluster**")
         for i, terms in enumerate(top_terms):
             st.write(f"**Cluster {i}**: {', '.join(terms)}")
+    # --- Sentiment ---
+    with tab_sentiment:
+        st.subheader("Sentiment of climate speeches over time")
+        st.caption(
+            "Each speech is scored using **VADER** (Valence Aware Dictionary and "
+            "sEntiment Reasoner), a lexicon-based method calibrated on social and "
+            "political English text. The compound score ranges from -1 (most "
+            "negative) to +1 (most positive). VADER tends to skew positive on long "
+            "formal text, so absolute values should be read with caution; the "
+            "**relative comparisons** below (across years, parties, and themes) "
+            "are the meaningful signal."
+        )
+
+        if "sentiment" not in df_filtered.columns:
+            st.warning(
+                "Sentiment scores are not available in the loaded dataset. "
+                "Re-run the sentiment computation cell in `notebooks/02_climate_filtering.ipynb` "
+                "to populate them."
+            )
+        else:
+            # Yearly trend
+            st.markdown("**Average sentiment per year**")
+            yearly_sent = A.sentiment_by_year(df_filtered)
+            if not yearly_sent.empty:
+                fig = px.line(
+                    yearly_sent, x="year", y="mean_sentiment",
+                    markers=True,
+                    labels={"mean_sentiment": "Mean compound sentiment", "year": "Year"},
+                    color_discrete_sequence=["#1f3a5f"],
+                )
+                fig.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.5)
+                fig.update_layout(xaxis=dict(tickmode="linear"))
+                st.plotly_chart(fig, use_container_width=True)
+
+                with st.expander("Yearly breakdown table"):
+                    st.dataframe(yearly_sent, use_container_width=True, hide_index=True)
+
+            # By party
+            st.markdown("---")
+            st.markdown("**Sentiment by party**")
+            st.caption(
+                "Mean sentiment for parties with at least 100 climate speeches. "
+                "More negative scores suggest a more critical or alarmist framing of climate."
+            )
+            party_sent = A.sentiment_by_party(df_filtered, n=12)
+            if not party_sent.empty:
+                fig = px.bar(
+                    party_sent.sort_values("mean_sentiment"),
+                    x="mean_sentiment", y="party_abbr",
+                    orientation="h",
+                    labels={"mean_sentiment": "Mean compound sentiment", "party_abbr": ""},
+                    color="mean_sentiment",
+                    color_continuous_scale="RdYlGn",
+                    color_continuous_midpoint=party_sent["mean_sentiment"].median(),
+                )
+                fig.update_layout(showlegend=False, coloraxis_showscale=False)
+                st.plotly_chart(fig, use_container_width=True)
+
+            # By theme
+            st.markdown("---")
+            st.markdown("**Sentiment by climate theme**")
+            st.caption(
+                "Different framings carry different emotional registers. "
+                "Climate-security speeches, for example, may use more alarmist or "
+                "urgent language than core environmental policy speeches."
+            )
+            theme_sent = A.sentiment_by_theme(df_filtered)
+            if not theme_sent.empty:
+                fig = px.bar(
+                    theme_sent.sort_values("mean_sentiment"),
+                    x="mean_sentiment", y="theme",
+                    orientation="h",
+                    labels={"mean_sentiment": "Mean compound sentiment", "theme": ""},
+                    color_discrete_sequence=["#1f3a5f"],
+                )
+                st.plotly_chart(fig, use_container_width=True)
+
+                with st.expander("Theme breakdown with negative-share details"):
+                    st.dataframe(theme_sent, use_container_width=True, hide_index=True)
+
+            # Methodology disclaimer
+            with st.expander("Methodology and caveats"):
+                st.markdown("""
+                **Method**: VADER (Hutto & Gilbert, 2014) is a rule-based sentiment
+                analyzer using a curated lexicon and grammatical heuristics. It produces
+                a compound score in [-1, +1].
+
+                **Caveats specific to this dataset**:
+                - The text is **machine-translated** from Dutch. Sentiment-bearing
+                  nuances may be lost or distorted in translation.
+                - VADER was trained on English **social media** text. Parliamentary
+                  prose contains ritual courtesies ("Mr. Chairman", "I thank the
+                  member") that inflate positive scores artificially.
+                - Long speeches (200+ words) tend to skew positive due to additive
+                  scoring. Comparisons across **equally long** units mitigate this.
+
+                **As future work**, fine-tuning a Dutch sentiment model (e.g., BERTje)
+                on the original Dutch text, with a small manually-labelled validation
+                set, would yield more reliable scores.
+                """)
     # --- Explore ---
     with tab_explore:
         st.subheader("Browse individual speeches")

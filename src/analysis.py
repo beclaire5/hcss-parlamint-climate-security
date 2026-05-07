@@ -326,3 +326,80 @@ def pre_post_invasion_significance(df_climate: pd.DataFrame, df_all: pd.DataFram
         })
 
     return pd.DataFrame(rows)
+# ----------------------------------------------------------------------------
+# Sentiment analysis (VADER)
+# ----------------------------------------------------------------------------
+
+def compute_sentiment_scores(df: pd.DataFrame, text_col: str = "text") -> pd.DataFrame:
+    """Add VADER sentiment scores to a DataFrame of speeches.
+
+    VADER (Valence Aware Dictionary and sEntiment Reasoner) is a lexicon-based
+    sentiment analyzer well-suited for short-to-medium English text. It returns:
+        - compound: overall sentiment in [-1, 1] (most useful)
+        - pos, neu, neg: individual proportions
+
+    Returns a copy of df with a new 'sentiment' column (the compound score)
+    and a categorical 'sentiment_label' column (positive/neutral/negative).
+    """
+    from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+    analyzer = SentimentIntensityAnalyzer()
+    df = df.copy()
+
+    # Compute compound score for each speech
+    df["sentiment"] = df[text_col].fillna("").apply(
+        lambda t: analyzer.polarity_scores(t)["compound"]
+    )
+
+    # Categorize: VADER's standard thresholds
+    def categorize(score):
+        if score >= 0.05:
+            return "positive"
+        elif score <= -0.05:
+            return "negative"
+        else:
+            return "neutral"
+
+    df["sentiment_label"] = df["sentiment"].apply(categorize)
+    return df
+
+
+def sentiment_by_year(df: pd.DataFrame) -> pd.DataFrame:
+    """Average sentiment per year, plus distribution of pos/neu/neg labels."""
+    yearly = df.groupby("year").agg(
+        mean_sentiment=("sentiment", "mean"),
+        n_speeches=("sentiment", "count"),
+        pct_positive=("sentiment_label", lambda s: (s == "positive").mean() * 100),
+        pct_neutral=("sentiment_label", lambda s: (s == "neutral").mean() * 100),
+        pct_negative=("sentiment_label", lambda s: (s == "negative").mean() * 100),
+    ).reset_index()
+    return yearly.round(3)
+
+
+def sentiment_by_party(df: pd.DataFrame, n: int = 12) -> pd.DataFrame:
+    """Average sentiment per party (top-N by speech count)."""
+    out = df.groupby("party_abbr").agg(
+        mean_sentiment=("sentiment", "mean"),
+        n_speeches=("sentiment", "count"),
+    ).reset_index()
+    out = out.dropna(subset=["party_abbr"])
+    out = out[out["n_speeches"] >= 100]  # only parties with meaningful sample size
+    return out.sort_values("n_speeches", ascending=False).head(n).round(3)
+
+
+def sentiment_by_theme(df: pd.DataFrame) -> pd.DataFrame:
+    """Average sentiment per theme. A speech can belong to multiple themes."""
+    rows = []
+    for col in THEME_COLS:
+        if col not in df.columns:
+            continue
+        sub = df[df[col]]
+        if len(sub) == 0:
+            continue
+        rows.append({
+            "theme": THEME_LABELS[col],
+            "n_speeches": len(sub),
+            "mean_sentiment": round(sub["sentiment"].mean(), 3),
+            "pct_negative": round((sub["sentiment_label"] == "negative").mean() * 100, 1),
+        })
+    return pd.DataFrame(rows)
