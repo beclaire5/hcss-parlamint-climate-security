@@ -18,9 +18,9 @@ The deliverable is a Streamlit application that allows analysts and non-technica
 
 Sub-questions explored in the tool:
 - Which speakers and parties have led climate debates, and with what intensity?
-- How is climate framed — purely environmental, or as a security/geopolitical issue?
+- How is climate framed: purely environmental, or as a security/geopolitical issue?
 - Did the Russian invasion of Ukraine (24 February 2022) shift the discourse toward energy security?
-- How visible is the Arctic dimension — relevant despite the Netherlands being a non-Arctic country and an Arctic Council observer?
+- How visible is the Arctic dimension: relevant despite the Netherlands being a non-Arctic country and an Arctic Council observer?
 
 ## Live application
 
