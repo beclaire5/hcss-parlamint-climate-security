@@ -314,14 +314,17 @@ ORDER BY climate_share_pct DESC;
 - **Materialized views**: pre-computed monthly aggregates (theme × party × month) refreshed daily would serve the dashboard without re-scanning the fact table
 - **Multi-country extension**: adding a `country` column (and corresponding partition key) on `meetings` would extend the schema to all 29 ParlaMint corpora with no structural change
 
+
 ## Possible extensions
 
-- **Sentiment analysis** of climate speeches over time, by party, to detect polarisation
-- **Topic modelling (LDA or BERTopic)** to discover latent sub-themes within the climate corpus instead of relying solely on pre-defined keywords
-- **Named entity analysis** using the existing NER annotations to track which countries, organisations, and persons appear most often in climate-security speeches
-- **Network analysis** of speaker interactions: who responds to whom on climate matters, and how those networks evolved
-- **Migration to v5.0** which adds a third subcorpus ("war") and improved language tagging
-- **HCSS-style visual identity**: full integration of the HCSS brand palette and typography for a polished demo
+The current tool focuses on a tractable scope. Several directions would extend its analytical depth:
+
+- **Generative AI component** — the only nice-to-have from the brief that is not yet implemented. An LLM could be used to summarise selected speeches, generate weekly digests of climate debate, or classify the political orientation of new speeches against the labelled corpus. Skipped intentionally during the 24-hour window because it requires careful prompt engineering and external API integration that I preferred not to rush.
+- **Sentiment in the original Dutch text** — VADER works on the machine-translated English text and is calibrated on social-media English. A Dutch sentiment model (e.g., BERTje fine-tuned on a small manually-labelled validation set) operating on the original Dutch corpus would yield more reliable, domain-appropriate scores.
+- **Semantic similarity instead of keyword filtering** — the current keyword approach has known precision-recall trade-offs (the README documents an ~80% precision sample for the Arctic theme). Sentence embeddings (e.g., multilingual SBERT) plus a small set of seed examples per theme would improve recall (catch tangential climate speeches without keywords) and precision (filter false positives).
+- **Topic modelling with BERTopic** — the current TF-IDF + K-Means surfaces useful patterns but is bag-of-words. BERTopic would surface semantically coherent topics rather than co-occurring terms, and would handle the multilingual case naturally.
+- **Migration to ParlaMint v5.0** — version 5.0 adds a dedicated *war* subcorpus that would replace the manual pre/post-invasion split currently reconstructed from dates. The schema is compatible.
+- **Multi-country comparison** — extending the same pipeline to other ParlaMint corpora (e.g., Germany, France, the Nordics) to compare how climate-security framings differ across European parliaments. The SQL schema in the README is already designed to support this with a single additional `country` column.
 
 ## Key findings from the analysis
 
@@ -337,10 +340,10 @@ Speeches mentioning core climate language (CO2, emissions, greenhouse gases) and
 The Pearson correlation between monthly rates of "core climate" and "energy transition" themes is **−0.85**: when one rises in the parliamentary discourse, the other tends to fall. The two framings appear to compete for parliamentary attention rather than reinforce each other. Climate policy, in contrast, correlates positively with core climate (+0.62), suggesting these two are typically discussed together.
 
 **4. The climate-security nexus occupies its own discursive space.**
-The climate-security theme shows near-zero correlations with all other themes (-0.10 to -0.14). This suggests it is a distinct register of speech rather than a sub-flavour of the mainstream climate debate — consistent with the idea that climate-security is still an emerging strand of policy discourse in the Netherlands.
+The climate-security theme shows near-zero correlations with all other themes (-0.10 to -0.14). This suggests it is a distinct register of speech rather than a sub-flavour of the mainstream climate debate, consistent with the idea that climate-security is still an emerging strand of policy discourse in the Netherlands.
 
 **5. Climate champions cluster around expected actors but with one surprise.**
-Top speakers on climate include Eric Wiebes (VVD, former Climate Minister), Mark Rutte (VVD, Prime Minister), Henk Kamp (VVD, former Economic Affairs Minister), and Rob Jetten (D66, current Climate and Energy Minister) — all expected. But two members of the small Party for the Animals (PvdD), Esther Ouwehand and Lammert van Raan, also rank in the top 10, despite the party's modest size. Adjusting for party size, PvdD, GroenLinks, and D66 lead in climate intensity (share of their speeches that are climate-related), which more accurately reflects climate prioritisation than absolute counts.
+Top speakers on climate include Eric Wiebes (VVD, former Climate Minister), Mark Rutte (VVD, Prime Minister), Henk Kamp (VVD, former Economic Affairs Minister), and Rob Jetten (D66, current Climate and Energy Minister), all expected. But two members of the small Party for the Animals (PvdD), Esther Ouwehand and Lammert van Raan, also rank in the top 10, despite the party's modest size. Adjusting for party size, PvdD, GroenLinks, and D66 lead in climate intensity (share of their speeches that are climate-related), which more accurately reflects climate prioritisation than absolute counts.
 
 **6. Latent topic clusters reveal six distinct registers in which climate is discussed.**
 Unsupervised TF-IDF + K-Means clustering of climate speeches surfaces six recurring patterns: (i) carbon taxation, (ii) economic governance of the transition, (iii) interrogative/critical sustainability questions, (iv) institutional politics (cabinet, European level), (v) parliamentary procedural language, and (vi) concrete energy transition (gas, wind, hydrogen). Four of the six clusters have a clear thematic identity; the remaining two reflect generic procedural language common to all parliamentary debates.
