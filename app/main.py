@@ -361,7 +361,7 @@ def main():
     with tab_war:
         st.subheader("Did the Russian invasion of Ukraine (Feb 2022) shift the climate discourse?")
         st.caption(
-            "We test whether the share of speeches mentioning each climate theme "
+            "This view tests whether the share of speeches mentioning each climate theme "
             "significantly changed between the period **before** and **after** "
             "24 February 2022, using a **chi-square test of independence**. "
             "The comparison window is restricted to 2021-01-01 → corpus end for fair baseline."
